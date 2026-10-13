@@ -1,0 +1,29 @@
+name: download-data
+
+# Downloads today's SPX (and, if NSE allows it, NIFTY) option chains on a GitHub runner
+# and commits them to data/. The calibration uses whatever snapshot is in data/.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python scripts/01_download_chains.py
+      - name: Commit data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          git commit -m "Update option chain snapshot from run ${{ github.run_id }}" || echo "no changes"
+          git pull --rebase origin main
+          git push origin HEAD:main
