@@ -320,7 +320,32 @@ desks do for stability.
 **Check on synthetic data.** Prices from known parameters plus bid-ask noise: calibration
 recovers v0, kappa, theta, sigma, rho to 3 significant digits, 0.04 vol points RMSE.
 
-**Real-data results:** see `results/calibration.md` (filled in after the first download).
+**Real-data result (SPX, closing quotes of 12 Oct 2026, spot 7807).** 1,880 OTM quotes,
+13 expiries from 16 to 465 days, calibrated in ~100 s:
+v0 = 0.0136 (11.6% vol), kappa = 7.41, theta = 0.0421 (20.5% vol), sigma = 1.89,
+rho = -0.65. Overall RMSE 0.90 vol points; 0.26-0.49 beyond 3 months, but 1.8 at 16 days.
+
+How to read it:
+- *v0 < theta*: today's vol (11.6%) is low relative to the long-run level (20.5%), so the
+  term structure of ATM vol slopes upward. That's normal in calm markets.
+- *Short expiries fit badly.* Real short-dated SPX skew is very steep (deep OTM puts at
+  45% vol, ATM at 10%). In Heston, skew at short maturities comes only from the
+  diffusion of v, which needs time to act, so the model can't make that much skew in 16
+  days. The optimiser tries anyway by pushing kappa (7.4) and vol-of-vol (1.9) to extreme
+  values, which is a symptom, not a feature. Fixes used in practice: add jumps in the
+  stock (Bates model), use rough volatility, or a local-stochastic vol model.
+- *Feller ratio 0.17*: the calibrated variance hits zero often. That's why step 4's QE
+  scheme matters: Euler would be badly biased with these parameters.
+
+**Bug I fixed on real data.** The first version estimated D (and so r) separately for
+every expiry by regression. On real quotes the short-expiry slopes are noise (D is ~0.998
+and quotes are cents apart), giving rates from -3.6% to +5.6%. Fix: one funding rate from
+the expiries of at least 3 months (4.8%), then only the forward per expiry. The implied
+dividend yield then came out smooth (0.7-3.6%), and the fit improved slightly.
+
+**NIFTY.** NSE's API returned an empty page to the GitHub runner (it blocks cloud IPs), so
+only SPX is calibrated. A NIFTY chain can be added by downloading it from a home
+connection and committing it as `data/nifty_chain.csv`; the script picks it up.
 
 ---
 
@@ -349,10 +374,11 @@ hedging project tests, with a network that learns the hedge directly.
 
 ## How to talk about this project
 
-**Resume line (fill in calibration numbers after the real-data run):**
+**Resume line:**
 "Built a Heston stochastic-volatility pricing engine in Python: Fourier (COS, Carr-Madan
 FFT), Monte Carlo (Andersen QE) and 2D finite-difference (ADI) pricers cross-validated to
-1e-4 against published benchmarks; calibrated to SPX options with x vol-point RMSE."
+1e-3 against published benchmarks; calibrated to 1,880 SPX options across 13 expiries with
+0.9 vol-point RMSE and diagnosed the model's short-maturity skew failure."
 
 **Questions to expect.**
 - Derive put-call parity. Why is the BS price increasing in vol?

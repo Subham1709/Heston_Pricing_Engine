@@ -84,8 +84,8 @@ def main():
                 f"| Feller ratio 2 kappa theta / sigma^2 | {p.feller():.2f} |", "",
                 f"RMSE in implied vol: **{info['rmse_iv'] * 100:.2f} vol points** overall.\n",
                 f"![](calibration_{market.lower()}.png)\n",
-                "Fit by expiry (rates and dividend yields implied from put-call parity):\n",
-                by_T.astype({"days": int, "quotes": int}).to_markdown(index=False, floatfmt=".3f"), ""]
+                "Fit by expiry (funding rate r and dividend yield q implied from put-call parity):\n",
+                by_T.astype({"days": str, "quotes": str}).to_markdown(index=False, floatfmt=".3f"), ""]
         print(market, p, info["rmse_iv"])
     (RES / "calibration.md").write_text("\n".join(out))
 

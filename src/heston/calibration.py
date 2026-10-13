@@ -3,9 +3,9 @@
 Calibration = find the five parameters (v0, kappa, theta, sigma, rho) whose model prices
 best match the observed prices. Steps, as a desk does it:
 
-1. For each expiry, back out the forward F and discount factor D from put-call parity,
-   C - P = D (F - K), by regressing C - P on K over near-the-money strikes. This avoids
-   guessing the dividend yield and the funding rate separately.
+1. Back out the forward F and discount factor D from put-call parity, C - P = D (F - K),
+   using near-the-money strikes (one funding rate from the longer expiries, then a
+   forward per expiry). This avoids guessing the dividend yield separately.
 2. Keep out-of-the-money options only (puts below F, calls above). They are the liquid
    ones, and in-the-money prices add no information beyond parity.
 3. Minimise sum_i ((model_i - market_i) / vega_i)^2 with Levenberg-Marquardt / trust
@@ -30,27 +30,40 @@ BOUNDS = (np.array([1e-4, 0.05, 1e-4, 0.05, -0.999]),   # v0, kappa, theta, sigm
           np.array([1.0, 15.0, 1.0, 3.0, 0.999]))
 
 
-def forward_and_discount(chain: pd.DataFrame, S: float, moneyness_band=0.1):
-    """Per expiry, regress (C - P) on K near the money: intercept = D F, slope = -D.
+def forward_and_discount(chain: pd.DataFrame, S: float, moneyness_band=0.1, min_T_for_rate=0.25):
+    """Forward F and discount factor D per expiry from put-call parity, C - P = D (F - K).
+
+    1. For each expiry, regress (C - P) on K near the money: slope = -D, intercept = D F.
+    2. The slope is noisy for short expiries (D is ~1 and quotes are a few cents apart),
+       so take one funding rate r as the median of the rates implied by expiries of at
+       least `min_T_for_rate` years, and set D = e^{-rT} for every expiry.
+    3. With D fixed, F = K + (C - P) / D at each near-the-money strike; take the median.
 
     chain columns: expiry, T, K, call (bool), mid. Returns DataFrame (expiry, T, F, D, r, q).
     """
-    rows = []
+    pairs = []
     for (exp, T), g in chain.groupby(["expiry", "T"]):
-        c = g[g.call].set_index("K").mid
-        p = g[~g.call].set_index("K").mid
+        c = g[g.call].groupby("K").mid.mean()
+        p = g[~g.call].groupby("K").mid.mean()
         both = c.index.intersection(p.index)
         both = both[np.abs(both / S - 1) < moneyness_band]
-        if len(both) < 4:
-            continue
-        y = (c[both] - p[both]).values
-        slope, intercept = np.polyfit(both.values.astype(float), y, 1)
-        D = -slope
-        if not (0.5 < D <= 1.05):
-            continue
-        F = intercept / D
-        rows.append({"expiry": exp, "T": T, "F": F, "D": D,
-                     "r": -np.log(D) / T, "q": -np.log(D) / T - np.log(F / S) / T})
+        if len(both) >= 4:
+            pairs.append((exp, T, both.values.astype(float), (c[both] - p[both]).values))
+    if not pairs:
+        return pd.DataFrame(columns=["expiry", "T", "F", "D", "r", "q"])
+
+    rates = []
+    for _, T, K, y in pairs:
+        D = -np.polyfit(K, y, 1)[0]
+        if T >= min_T_for_rate and 0.5 < D <= 1.05:
+            rates.append(-np.log(D) / T)
+    r = float(np.median(rates)) if rates else 0.0
+
+    rows = []
+    for exp, T, K, y in pairs:
+        D = np.exp(-r * T)
+        F = float(np.median(K + y / D))
+        rows.append({"expiry": exp, "T": T, "F": F, "D": D, "r": r, "q": r - np.log(F / S) / T})
     return pd.DataFrame(rows)
 
 

@@ -52,7 +52,23 @@ follow-up deep hedging project.
 
 ![Hedge ratios](results/delta_vs_bs.png)
 
-**Calibration to market data**: see [results/calibration.md](results/calibration.md).
+**Calibration to real SPX options** ([calibration.md](results/calibration.md)): 1,880
+out-of-the-money quotes across 13 expiries (16 to 465 days), snapshot of 12 Oct 2026
+closing quotes (spot 7807). One set of five parameters fits the whole surface to
+**0.90 vol points RMSE**, under 0.5 vol points beyond 3 months:
+
+| v0 | kappa | theta | sigma | rho | Feller ratio |
+|---|---|---|---|---|---|
+| 0.0136 (11.6% vol) | 7.41 | 0.0421 (20.5% vol) | 1.89 | -0.65 | 0.17 |
+
+![SPX calibration](results/calibration_spx.png)
+
+The fit is good from 3 months out, but Heston **can't produce the steep skew of
+short-dated options** (1.8 vol points error at 16 days, with the deep downside wing too
+cheap). To try, the optimiser pushes kappa and vol-of-vol to extreme values. This is the
+model's known weakness, and why desks add jumps (Bates) or use rough or local-stochastic
+volatility models. The NIFTY download failed (NSE blocks GitHub's servers), so only SPX
+is calibrated.
 
 Full tables: [results/validation.md](results/validation.md).
 
