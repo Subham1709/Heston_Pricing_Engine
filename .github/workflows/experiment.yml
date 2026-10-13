@@ -1,0 +1,33 @@
+name: experiment
+
+# Runs the validation, calibration and Greeks scripts on the committed data snapshot and
+# commits results/ back to the repo. (If data/ has no snapshot, it downloads one first.)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: test -f data/snapshot.json || python scripts/01_download_chains.py
+      - run: python scripts/02_validate_methods.py
+      - run: python scripts/03_calibrate.py
+      - run: python scripts/04_greeks.py
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results data
+          git commit -m "Update results from experiment run ${{ github.run_id }}" || echo "no changes"
+          git pull --rebase origin main
+          git push origin HEAD:main
