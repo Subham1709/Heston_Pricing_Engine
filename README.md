@@ -2,6 +2,9 @@
 
 [![tests](https://github.com/Subham1709/Heston_Pricing_Engine/actions/workflows/tests.yml/badge.svg)](https://github.com/Subham1709/Heston_Pricing_Engine/actions/workflows/tests.yml)
 
+**Live app: [subham-heston-engine.streamlit.app](https://subham-heston-engine.streamlit.app)**
+(price options seven ways, move the parameters and watch the smile, see the SPX fit; [app/README.md](app/README.md))
+
 A from-scratch Python engine for the Heston (1993) stochastic volatility model, built the
 way bank pricing libraries are: **several independent pricing methods, each validated
 against the others and against published benchmarks**, then calibrated to real index
@@ -95,6 +98,7 @@ scripts/
   04_greeks.py            Greeks and hedge ratios -> results/
 tests/                    70 tests: benchmarks, limits, convergence orders, parity
 docs/LEARNING_LOG.md      step-by-step notes: what, why, and interview questions
+app/                      Streamlit web app
 ```
 
 ## Running it
